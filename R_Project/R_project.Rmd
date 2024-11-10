@@ -1,0 +1,531 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+**Importing The Libraries**
+
+```{r}
+library(car)
+
+library(e1071)
+library(glmnet)
+library(stats)
+library(utils)
+library(datasets)
+library(ggplot2)
+library(polynom)
+```
+
+**UNDERSTANDING THE DATA**
+
+```{r}
+# Reading The Data set and creating copies for the Data sets 
+df  = read.csv('Life Expectancy Data.csv')
+
+df_copy = data.frame(df) 
+df_copy_1 = subset(df, select = -c(Country,Year,Status))
+
+
+```
+
+**To view the Data set**
+```{r}
+
+head(df)
+```
+
+**Dimensions of the Data set**
+```{r}
+dim(df)
+
+```
+
+**The Type of Data set**
+```{r}
+str(df)
+
+```
+**Details of the Data set**
+
+```{r}
+summary(df)
+
+```
+
+**Names of the Columns of the Dataset**
+```{r}
+
+
+colnames(df) 
+
+```
+**Missing Values and Handling**
+```{r}
+# Finding Out the No of Missing Values in the Datset 
+
+miss_val = sum(is.na(df))
+print(paste0(" The Percentage of missing values in each Data set :   ",miss_val))
+
+```
+
+
+**Graphs Of the Missing Values**
+```{r}
+feature <- c()
+percentage <- c()
+for (i in colnames(df)) {
+  miss_per <- (sum(is.na(df[[i]]))/length(df[[i]]))*100
+  if (miss_per > 0) {
+    feature <- c(feature, i)
+    percentage <- c(percentage, miss_per)
+  }
+}
+
+miss_df <- data.frame(percentage, row.names=feature)
+library(ggplot2)
+ggplot(miss_df, aes(x=row.names(miss_df), y=percentage)) + 
+  geom_bar(stat="identity", fill="red") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+**Find Out the Duplicate values**
+
+```{r}
+df[duplicated(df),] 
+
+
+```
+
+**Line Plot Between year and Life Expectancy**
+
+```{r}
+library(ggplot2)
+
+ggplot(df, aes(x = `Year`, y = `Life.expectancy`)) +
+  geom_line()
+
+```
+
+
+```{r}
+library(ggplot2)
+
+
+ggplot(df, aes(x = `Life.expectancy`, y = Schooling)) +
+  geom_point(color='red',size =0.9)
+
+
+
+```
+
+**Filling The Missing values using Mean**
+```{r}
+df[, sapply(df, is.numeric)] <- apply(df[, sapply(df, is.numeric)], 2, function(x) replace(x, is.na(x), mean(x, na.rm = TRUE)))
+
+sum(is.null(df))
+
+```
+
+**Pair Plots**
+
+```{r}
+#for (i in 1:ncol(df)) {
+  #for (j in 1:ncol(df)) {
+    #if (i != j) {
+      #plot(df[,i], df[,j], main = paste(colnames(df)[i], " vs ", colnames(df)[j]))
+    #}
+  #}
+#}
+
+```
+
+
+# Correalation Matrix  and Heat Map : 
+```{r}
+# Create correlation matrix
+library(reshape2)
+df <- df[, sapply(df, is.numeric)]
+corr <- cor(df)
+
+# Melt correlation matrix
+corr_melted <- melt(corr)
+
+# Create heatmap
+ggplot(corr_melted, aes(x=Var1, y=Var2)) +
+  geom_tile(aes(fill=value)) +
+  scale_fill_gradient(low="white", high="green") +
+  geom_text(aes(label=round(value, 2)), color="black") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+sum(is.na(df))
+```
+
+
+```{r}
+sum(is.na(df_copy))
+```
+**Filling The Missing Values With Median Values :** 
+
+```{r}
+df_copy[, sapply(df_copy, is.numeric)] <- apply(df_copy[, sapply(df_copy, is.numeric)], 2, function(x) replace(x, is.na(x), median(x, na.rm = TRUE))) 
+
+```
+
+```{r}
+sum(is.na(df_copy))
+``` 
+**Filling the Missing value with Interpolation :** 
+```{r}
+for (col in colnames(df_copy_1)) {
+  df_copy_1[[col]] <- approx(seq_along(df_copy_1[[col]])[!is.na(df_copy_1[[col]])], df_copy_1[[col]][!is.na(df_copy_1[[col]])], seq_along(df_copy_1[[col]]))$y
+}
+```
+
+**Skewness Of the Dataset**
+```{r}
+skewness_1 <- function(x) {
+  n <- length(x)
+  m3 <- sum((x - mean(x))^3)/(n-1)
+  s3 <- sd(x)^3
+  skewness <- m3/s3
+  return(skewness)
+}
+
+for (col in names(df_copy_1)) {
+  if(is.numeric(df_copy_1[[col]])){
+    print(paste(col, "-:", skewness_1(df_copy_1[[col]])))
+  }
+}
+```
+
+**Normalizing the Skewed Datasets**
+```{r}
+Measles_sqrt <- sqrt(sqrt(df_copy_1$Measles))
+skewness(Measles_sqrt)
+```
+
+```{r}
+df_copy_1$Measles <- Measles_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=Measles)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.7, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of Measles", x="Measles", y="Density")
+```
+
+```{r}
+Percentage_expe_sqrt <- sqrt(sqrt(df_copy_1$percentage.expenditure))
+skewness(Percentage_expe_sqrt)
+df_copy_1$percentage.expenditure <- Percentage_expe_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=percentage.expenditure)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.08, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of percentage.expenditure", x="percentage.expenditure", y="Density")
+```
+
+```{r}
+infant.deaths_sqrt <- sqrt(sqrt(df_copy_1$infant.deaths))
+skewness(infant.deaths_sqrt)
+df_copy_1$infant.deaths <- infant.deaths_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=infant.deaths)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.3, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of infant.deaths", x="infant.deaths", y="Density")
+```
+
+```{r}
+under.five.deaths_sqrt <- sqrt(sqrt(df_copy_1$under.five.deaths))
+skewness(under.five.deaths_sqrt)
+df_copy_1$under.five.deaths <- under.five.deaths_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=under.five.deaths)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.3, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of under.five.deaths", x="under.five.deaths", y="Density")
+```
+
+```{r}
+Polio_sqrt <- sqrt(sqrt(df_copy_1$Polio ))
+skewness(Polio_sqrt)
+df_copy_1$Polio  <- Polio_sqrt
+```
+
+```{r}
+Population_sqrt <- sqrt(sqrt(df_copy_1$Population))
+skewness(Population_sqrt)
+df_copy_1$Population  <- Population_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=Population)) + 
+  geom_histogram(aes(y=..density..), binwidth=5, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of Population", x="Population", y="Density")
+```
+
+```{r}
+HIV.AIDS_sqrt <- sqrt(sqrt(df_copy_1$HIV.AIDS))
+skewness(HIV.AIDS_sqrt)
+df_copy_1$HIV.AIDS  <- HIV.AIDS_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=HIV.AIDS)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.09, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of HIV.AIDS", x="HIV.AIDS", y="Density")
+```
+
+```{r}
+GDP_sqrt <- sqrt(sqrt(df_copy_1$GDP))
+skewness(GDP_sqrt)
+df_copy_1$GDP  <- GDP_sqrt
+```
+
+```{r}
+ggplot(df_copy_1, aes(x=GDP)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.5, color="black", fill="white") + 
+  geom_density(alpha=0.5, fill="#FF6666") +
+  labs(title="Histogram of GDP", x="GDP", y="Density")
+```
+
+**Skewness of the Datasets after Normalizing**
+```{r}
+skewness_1 <- function(x) {
+  n <- length(x)
+  m3 <- sum((x - mean(x))^3)/(n-1)
+  s3 <- sd(x)^3
+  skewness <- m3/s3
+  return(skewness)
+}
+
+for (col in names(df_copy_1)) {
+  if(is.numeric(df_copy_1[[col]])){
+    print(paste(col, "is:", skewness_1(df_copy_1[[col]])))
+  }
+}
+```
+
+**Feature Selection**
+
+**Correlation Method**
+```{r}
+correlations <- cor(df_copy_1)
+sorted_correlations <- sort(correlations['Life.expectancy',], decreasing=TRUE)
+
+for (i in 1:length(sorted_correlations)) {
+  print(paste(names(sorted_correlations)[i], ':', sorted_correlations[i]))
+}
+
+
+
+library(ggplot2)
+
+ggplot(data = reshape2::melt(cor(df_copy_1)), aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(aes(fill=value)) +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  geom_text(aes(label=round(value, 2)), color="black") +
+  
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.01, hjust=0.01)) +
+  labs(title="Correlation Heatmap") + 
+  theme(plot.title = element_text(size=20),
+        axis.text.y = element_text(size= 10),
+        axis.text.x = element_text(size= 10),
+        legend.text = element_text(size= 10),
+        legend.title = element_text(size=10))
+
+```
+
+**Lasso Regression Method**
+```{r}
+
+data_n = df_copy_1
+trainIndex <- sample(nrow(data_n), floor(0.75 * nrow(data_n)), replace = FALSE)
+train <- data_n[trainIndex, ]
+
+test <- data_n[-trainIndex, ]
+# Feature selection using Lasso regression
+x_1 <- as.matrix(train[,2:ncol(train)])
+y_1 <- train[,1]
+
+lassoModel <- cv.glmnet(x_1, y_1, alpha = 0.5)
+coef(lassoModel)
+```
+
+**Anova Feature Slection score method**
+```{r}
+
+X <- df_copy_1[, -1]
+y <- df_copy_1[, 1]
+
+
+fs <- apply(X, 2, function(x) summary(aov(y ~ x))[[1]][1, 4])
+
+features_map <- data.frame(feature = names(fs), score = fs)
+features_map <- features_map[order(features_map$score, decreasing = TRUE), ]
+
+print("The feature scores generated using ANOVA method are: ")
+for (i in 1:nrow(features_map)) {
+  print(paste0("Feature ", i, ": ", features_map$feature[i], " - ", features_map$score[i]))
+}
+```
+
+**Finalizing the Data set and Reduce the Data sets with the Potential Predictors**
+```{r}
+final_df =df_copy_1[,c( "Life.expectancy","Schooling","HIV.AIDS","Adult.Mortality","infant.deaths","Alcohol",
+                       "Measles","Total.expenditure","BMI","GDP","Income.composition.of.resources")]
+poly_df = final_df
+head(final_df)
+sum(is.na(final_df))
+```
+```{r}
+str(final_df)
+```
+**Spliiting The Dataset into Traing and Testing set**
+```{r}
+trainIndex <- sample(seq_len(nrow(final_df)), floor(0.78 * nrow(final_df)))
+train <- final_df[trainIndex, ]
+test <- final_df[-trainIndex, ]
+
+# fit linear regression model
+lm.fit <- lm(Life.expectancy ~ ., data = train)
+
+
+str(train[,-1])
+sum(is.na(train))
+# fit polynomial regression model
+
+summary(lm.fit)
+
+
+```
+**Fit the Model
+```{r}
+lm.fit
+```
+
+**Vif score 
+```{r}
+vif(lm.fit)
+```
+
+**Anova Test 
+```{r}
+fit.aov <- anova(lm.fit)
+
+tab <- as.table(cbind(
+  'SS' = c("SSR(x1, x2, x1:X2)" = sum(fit.aov[1:3, 2]),
+         "SSR(X1)"           = fit.aov[1, 2],
+         "SSR(X2|X1)"        = fit.aov[2, 2],
+         "SSR(X1:X2|X1,X2)"    = fit.aov[3, 2],
+         "SSE(X1,X2,X1:X2)"     = fit.aov[4, 2],
+         "Total"             = sum(fit.aov[, 2])),
+
+  'Df' = c(                    sum(fit.aov[1:3, 1]),
+                               fit.aov[1, 1],
+                               fit.aov[2, 1],
+                               fit.aov[3, 1],
+                               fit.aov[4, 1],
+                               sum(fit.aov$Df)),
+
+  'MS' = c(                    sum(fit.aov[1:3, 2]) / sum(fit.aov[1:3, 1]),
+                               fit.aov[1, 3],
+                               fit.aov[2, 3],
+                               fit.aov[3, 3],
+                               fit.aov[4, 3],
+                               NA)
+))
+
+round(tab, 2)
+
+```
+
+**Multiple Regression Plots**
+```{r}
+plot(lm.fit)
+```
+**R-Squared**
+```{r}
+# calculate r-squared values for both models
+lm.r_squared <- summary(lm.fit)$r.squared
+print(paste0("Linear regression r-squared: ", lm.r_squared))
+```
+
+*Post processing* 
+**Further Reducing the Model**
+
+```{r}
+mod_df <- subset(final_df, select = -c(Schooling, infant.deaths, Income.composition.of.resources))
+head(mod_df)
+```
+
+```{r}
+lm.fit_mod <- lm(Life.expectancy ~ ., data = mod_df)
+
+summary(lm.fit_mod)
+
+lm.r_squared <- summary(lm.fit)$r.squared
+print(paste0("Linear regression r-squared: ", lm.r_squared))
+
+plot(lm.fit)
+```
+
+**Polynomial Regression**
+
+```{r}
+
+poly_reg = lm(formula = Life.expectancy ~ Schooling + Schooling^2 + Schooling^3 + HIV.AIDS + HIV.AIDS^2 + HIV.AIDS^3 + Adult.Mortality + Adult.Mortality^2 + Adult.Mortality^3 + infant.deaths + infant.deaths^2 + infant.deaths^3 + Alcohol + Alcohol^2 + Alcohol^3 + Measles + Measles^2 + Measles^3 + Total.expenditure + Total.expenditure^2 + Total.expenditure^3 + BMI + BMI^2 +BMI^3 + GDP + GDP^2 + GDP^3 + Income.composition.of.resources + Income.composition.of.resources^2 + Income.composition.of.resources^3,data = poly_df)
+
+summary(poly_reg)
+Poly.r_squared <- summary(poly_reg)$r.squared
+print(paste0("Linear regression r-squared: ", Poly.r_squared))
+plot(poly_reg)
+summary(poly_reg)
+
+```
+
+**Polynomial Equation**
+```{r}
+poly_reg
+```
+#hiv is sample bias or insignificant or biased result.
+
+**Aic Test**
+```{r}
+ply_aic = AIC(poly_reg)
+ply_aic
+```
+
+```{r}
+lm_aic = AIC(lm.fit_mod)
+lm_aic
+```
+```{r}
+print(paste0("Polynomial r-squared: ", Poly.r_squared))
+```
+
+```{r}
+print(paste0("Linear regression r-squared: ", lm.r_squared))
+```
+
+
+_____________________________________________**END**______________________________________________________________
+
+
