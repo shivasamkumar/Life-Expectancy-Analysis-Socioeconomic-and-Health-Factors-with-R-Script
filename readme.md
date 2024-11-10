@@ -56,23 +56,23 @@ install.packages(c("ggplot2", "dplyr", "car", "MASS", "glmnet"))
 
                          Missing Values Graph 
 
-![Linear regression](Demo_1.png)
+![Linear regression](R_Project/Demo_1.png)
 
                         Correlation Heat map
 
-![Linear regression](Demo_2.png)
+![Linear regression](R_Project/Demo_2.png)
                 
                  Multiple regression Residuals vs Leverage
 
-![Linear regression](Demo_3.png)
+![Linear regression](R_Project/Demo_3.png)
 
                root standard residuals vs Fitted values
 
-![Linear regression](Demo_4.png)
+![Linear regression](R_Project/Demo_4.png)
 
                 Result
 
-![Linear regression](Demo_5.png)
+![Linear regression](R_Project/Demo_5.png)
 
 
 
